@@ -1,4 +1,5 @@
 import { expect, type Page, request } from '@playwright/test';
+import { Client } from 'pg';
 
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -13,6 +14,10 @@ export const ADMIN =
     process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD
         ? { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }
         : undefined;
+
+// The discount endpoints no longer check for the admin role, so tests that only
+// manage discounts fall back to the customer account when no admin is configured.
+export const DISCOUNT_ACCOUNT = ADMIN ?? CUSTOMER;
 
 export interface DiscountInput {
     code: string;
@@ -76,7 +81,7 @@ export function discountRow(page: Page, code: string) {
     return page.getByRole('row').filter({ has: page.getByRole('cell', { name: code, exact: true }) });
 }
 
-interface ApiDiscount {
+export interface ApiDiscount {
     discountID: string;
     code: string;
     type: string;
@@ -86,17 +91,18 @@ interface ApiDiscount {
 
 // Direct backend access, used for verifying persistence and for cleanup.
 export async function withAdminApi<T>(
-    fn: (call: (method: 'GET' | 'DELETE', path: string) => Promise<{ status: number; body: unknown; }>) => Promise<T>,
+    fn: (
+        call: (method: 'GET' | 'POST' | 'DELETE', path: string, data?: object) => Promise<{ status: number; body: unknown; }>,
+    ) => Promise<T>,
 ): Promise<T> {
-    if (!ADMIN) throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD are required');
     const api = await request.newContext({ baseURL: API_URL });
     try {
-        const login = await api.post('/auth/verify', { data: ADMIN });
-        expect(login.ok(), 'admin login against the backend').toBeTruthy();
+        const login = await api.post('/auth/verify', { data: DISCOUNT_ACCOUNT });
+        expect(login.ok(), 'login against the backend').toBeTruthy();
         const { accessToken } = (await login.json()) as { accessToken: string; };
         const headers = { Authorization: `Bearer ${accessToken}` };
-        return await fn(async (method, path) => {
-            const response = await api.fetch(path, { method, headers });
+        return await fn(async (method, path, data) => {
+            const response = await api.fetch(path, { method, headers, data });
             const text = await response.text();
             return { status: response.status(), body: text ? JSON.parse(text) : undefined };
         });
@@ -112,13 +118,60 @@ export async function findDiscountByCode(code: string): Promise<ApiDiscount | un
     });
 }
 
-export async function deleteDiscountsByCode(codes: string[]) {
-    if (!ADMIN || codes.length === 0) return;
-    await withAdminApi(async (call) => {
-        const { body } = await call('GET', '/discounts');
-        const { discounts } = body as { discounts: ApiDiscount[]; };
-        for (const discount of discounts.filter((d) => codes.includes(d.code))) {
-            await call('DELETE', `/discounts/${discount.discountID}`);
-        }
+// Sets a discount up directly through the backend so UI tests start from a known state.
+export async function createDiscountViaApi(input: {
+    code: string;
+    type?: 'PERCENTAGE' | 'AMOUNT_OFF';
+    value?: string;
+    expiryDate: string;
+}): Promise<ApiDiscount> {
+    return withAdminApi(async (call) => {
+        const { status, body } = await call('POST', '/discounts', { type: 'PERCENTAGE', value: '20', ...input });
+        expect(status, `creating discount ${input.code}`).toBe(201);
+        return body as ApiDiscount;
     });
+}
+
+// Backend discount endpoint calls that the tests assert on directly.
+export async function callDiscountApi(method: 'POST', path: string, data?: object) {
+    return withAdminApi((call) => call(method, path, data ?? {}));
+}
+
+export function activateLink(page: Page, code: string) {
+    return discountRow(page, code).getByRole('link', { name: `Activate discount ${code}` });
+}
+
+export function deactivateButton(page: Page, code: string) {
+    return discountRow(page, code).getByRole('button', { name: `Deactivate discount ${code}` });
+}
+
+export async function openActivatePage(page: Page, discountID: string) {
+    await page.goto(`/discounts/${discountID}/activate`);
+    await expect(page.getByRole('heading', { name: 'Activate Discount' })).toBeVisible();
+}
+
+// Returns the response to the activate form POST (303 on success, 4xx/5xx on failure).
+export async function submitActivateForm(page: Page, expiryDate: string) {
+    await page.getByLabel('New expiry date').fill(expiryDate);
+    const [response] = await Promise.all([
+        page.waitForResponse((r) => r.request().method() === 'POST' && /\/discounts\/[^/]+\/activate$/.test(new URL(r.url()).pathname)),
+        page.getByRole('button', { name: 'Activate Discount' }).click(),
+    ]);
+    return response;
+}
+
+// The backend has no delete endpoint, so test data is removed straight from the local database.
+const DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://dev:dev@localhost:5432/app_dev';
+
+export async function deleteDiscountsByCode(codes: string[]) {
+    if (codes.length === 0) return;
+    const client = new Client({ connectionString: DATABASE_URL });
+    try {
+        await client.connect();
+        await client.query('DELETE FROM "Discounts" WHERE code = ANY($1::text[])', [codes]);
+    } catch (error) {
+        console.warn(`Could not delete test discounts (${codes.length}): ${(error as Error).message}`);
+    } finally {
+        await client.end().catch(() => undefined);
+    }
 }

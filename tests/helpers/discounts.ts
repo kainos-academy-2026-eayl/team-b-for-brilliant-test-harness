@@ -81,7 +81,7 @@ export function discountRow(page: Page, code: string) {
     return page.getByRole('row').filter({ has: page.getByRole('cell', { name: code, exact: true }) });
 }
 
-export interface ApiDiscount {
+interface ApiDiscount {
     discountID: string;
     code: string;
     type: string;
@@ -118,60 +118,13 @@ export async function findDiscountByCode(code: string): Promise<ApiDiscount | un
     });
 }
 
-// Sets a discount up directly through the backend so UI tests start from a known state.
-export async function createDiscountViaApi(input: {
-    code: string;
-    type?: 'PERCENTAGE' | 'AMOUNT_OFF';
-    value?: string;
-    expiryDate: string;
-}): Promise<ApiDiscount> {
-    return withAdminApi(async (call) => {
-        const { status, body } = await call('POST', '/discounts', { type: 'PERCENTAGE', value: '20', ...input });
-        expect(status, `creating discount ${input.code}`).toBe(201);
-        return body as ApiDiscount;
-    });
-}
-
-// Backend discount endpoint calls that the tests assert on directly.
-export async function callDiscountApi(method: 'POST', path: string, data?: object) {
-    return withAdminApi((call) => call(method, path, data ?? {}));
-}
-
-export function activateLink(page: Page, code: string) {
-    return discountRow(page, code).getByRole('link', { name: `Activate discount ${code}` });
-}
-
-export function deactivateButton(page: Page, code: string) {
-    return discountRow(page, code).getByRole('button', { name: `Deactivate discount ${code}` });
-}
-
-export async function openActivatePage(page: Page, discountID: string) {
-    await page.goto(`/discounts/${discountID}/activate`);
-    await expect(page.getByRole('heading', { name: 'Activate Discount' })).toBeVisible();
-}
-
-// Returns the response to the activate form POST (303 on success, 4xx/5xx on failure).
-export async function submitActivateForm(page: Page, expiryDate: string) {
-    await page.getByLabel('New expiry date').fill(expiryDate);
-    const [response] = await Promise.all([
-        page.waitForResponse((r) => r.request().method() === 'POST' && /\/discounts\/[^/]+\/activate$/.test(new URL(r.url()).pathname)),
-        page.getByRole('button', { name: 'Activate Discount' }).click(),
-    ]);
-    return response;
-}
-
-// The backend has no delete endpoint, so test data is removed straight from the local database.
-const DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://dev:dev@localhost:5432/app_dev';
-
 export async function deleteDiscountsByCode(codes: string[]) {
-    if (codes.length === 0) return;
-    const client = new Client({ connectionString: DATABASE_URL });
-    try {
-        await client.connect();
-        await client.query('DELETE FROM "Discounts" WHERE code = ANY($1::text[])', [codes]);
-    } catch (error) {
-        console.warn(`Could not delete test discounts (${codes.length}): ${(error as Error).message}`);
-    } finally {
-        await client.end().catch(() => undefined);
-    }
+    if (!ADMIN || codes.length === 0) return;
+    await withAdminApi(async (call) => {
+        const { body } = await call('GET', '/discounts');
+        const { discounts } = body as { discounts: ApiDiscount[]; };
+        for (const discount of discounts.filter((d) => codes.includes(d.code))) {
+            await call('DELETE', `/discounts/${discount.discountID}`);
+        }
+    });
 }

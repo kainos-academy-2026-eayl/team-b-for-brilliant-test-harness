@@ -24,12 +24,12 @@ test('incorrect password shows error', async ({ page }) => {
     await expect(loginPage.message).toHaveText('Email or password is incorrect. Please try again.');
 });
 
-// test('incorrect email and password shows error', async ({ page }) => {
-//     const loginPage = new LoginPage(page);
-//     await loginPage.goto();
-//     await loginPage.loginAs('qwmweodfweofm@test.com', 'wrongpasswordhgvgfcftcc');
-//     await expect(loginPage.message).toHaveText('Email or password is incorrect. Please try again.');
-// });
+test('incorrect email and password shows error', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+    await loginPage.loginAs('qwmweodfweofm@test.com', 'wrongpasswordhgvgfcftcc');
+    await expect(loginPage.message).toHaveText('Email or password is incorrect. Please try again.');
+});
 
 // for all of these incorrect login tests, the error message is the same: 'Your email or password is incorrect. Please try again.'
 

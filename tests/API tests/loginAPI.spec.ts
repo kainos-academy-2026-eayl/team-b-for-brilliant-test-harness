@@ -1,5 +1,5 @@
 import { expect, request } from '@playwright/test';
-import { Variables } from '../../Variables';
+import { Variables } from '../../variables';
 import { test } from '../../fixture';
 
 test.use({

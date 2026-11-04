@@ -1,6 +1,6 @@
 import { test, expect, Locator, Page } from '@playwright/test';
 import { RegisterPage } from '../../pages/RegisterPage';
-import { Variables } from '../../variables';
+import { Variables } from '../../Variables';
 
 test('successful registration', async ({ page }) => {
     const registerPage = new RegisterPage(page);

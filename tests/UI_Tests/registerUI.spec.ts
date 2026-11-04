@@ -1,5 +1,5 @@
 import { test, expect, Locator, Page } from '@playwright/test';
-import { RegisterPage } from '../../pages/RegisterPage';
+import { RegisterPage } from '../../Pages/RegisterPage';
 import { Variables } from '../../Variables';
 
 test('successful registration', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { expect, type Page, request } from '@playwright/test';
+import { Client } from 'pg';
 
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -13,6 +14,10 @@ export const ADMIN =
     process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD
         ? { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }
         : undefined;
+
+// The discount endpoints no longer check for the admin role, so tests that only
+// manage discounts fall back to the customer account when no admin is configured.
+export const DISCOUNT_ACCOUNT = ADMIN ?? CUSTOMER;
 
 export interface DiscountInput {
     code: string;
@@ -86,17 +91,18 @@ interface ApiDiscount {
 
 // Direct backend access, used for verifying persistence and for cleanup.
 export async function withAdminApi<T>(
-    fn: (call: (method: 'GET' | 'DELETE', path: string) => Promise<{ status: number; body: unknown; }>) => Promise<T>,
+    fn: (
+        call: (method: 'GET' | 'POST' | 'DELETE', path: string, data?: object) => Promise<{ status: number; body: unknown; }>,
+    ) => Promise<T>,
 ): Promise<T> {
-    if (!ADMIN) throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD are required');
     const api = await request.newContext({ baseURL: API_URL });
     try {
-        const login = await api.post('/auth/verify', { data: ADMIN });
-        expect(login.ok(), 'admin login against the backend').toBeTruthy();
+        const login = await api.post('/auth/verify', { data: DISCOUNT_ACCOUNT });
+        expect(login.ok(), 'login against the backend').toBeTruthy();
         const { accessToken } = (await login.json()) as { accessToken: string; };
         const headers = { Authorization: `Bearer ${accessToken}` };
-        return await fn(async (method, path) => {
-            const response = await api.fetch(path, { method, headers });
+        return await fn(async (method, path, data) => {
+            const response = await api.fetch(path, { method, headers, data });
             const text = await response.text();
             return { status: response.status(), body: text ? JSON.parse(text) : undefined };
         });

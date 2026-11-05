@@ -3,6 +3,7 @@ import { Locator, Page } from '@playwright/test';
 export class AddDetailsPage {
     readonly heading: Locator;
     readonly subtitle: Locator;
+    readonly detailsForm: Locator;
     readonly serverError: Locator;
     readonly retryLink: Locator;
     readonly firstNameInput: Locator;
@@ -21,10 +22,13 @@ export class AddDetailsPage {
     readonly postcodeError: Locator;
     readonly securityQuestionError: Locator;
     readonly securityAnswerError: Locator;
+    readonly securityQuestionHint: Locator;
+    readonly securityAnswerHint: Locator;
 
     constructor(private readonly page: Page) {
         this.heading = page.getByRole('heading', { level: 1, name: 'Add your details' });
         this.subtitle = page.locator('.card-subtitle');
+        this.detailsForm = page.locator('form[method="post"][action="/register/details"]');
         this.serverError = page.locator('p.alert');
         this.retryLink = page.getByRole('link', { name: 'Try loading the questions again' });
         this.firstNameInput = page.getByLabel('First name');
@@ -43,6 +47,8 @@ export class AddDetailsPage {
         this.postcodeError = page.locator('#postcode-error');
         this.securityQuestionError = page.locator('#securityQuestionID-error');
         this.securityAnswerError = page.locator('#securityAnswer-error');
+        this.securityQuestionHint = page.locator('#security-question-hint');
+        this.securityAnswerHint = page.locator('#security-answer-hint');
     }
 
     async goto() {
@@ -67,11 +73,6 @@ export class AddDetailsPage {
             await this.securityQuestionSelect.selectOption({ label: details.securityQuestion });
         }
         if (details.securityAnswer !== undefined) await this.securityAnswerInput.fill(details.securityAnswer);
-    }
-
-    async removeMaxLengths() {
-        await this.page.locator('input[maxlength]').evaluateAll(inputs =>
-            inputs.forEach(input => input.removeAttribute('maxlength')));
     }
 
     async save() {

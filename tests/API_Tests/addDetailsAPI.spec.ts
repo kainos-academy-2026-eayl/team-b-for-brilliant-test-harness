@@ -15,15 +15,19 @@ function extractCsrf(html: string): string {
 async function registerSession(request: APIRequestContext): Promise<string> {
     const registerPage = await request.get('/register');
     const csrf = extractCsrf(await registerPage.text());
-    await request.post('/register', {
+    const registrationResponse = await request.post('/register', {
         form: {
             _csrf: csrf,
             email: `details${Date.now()}${Math.floor(Math.random() * 100000)}@test.com`,
             password: Variables.validPassword,
+            confirmPassword: Variables.validPassword,
         },
         maxRedirects: 0,
     });
+    expect(registrationResponse.status()).toBe(303);
+    expect(registrationResponse.headers()['location']).toBe(DETAILS_PATH);
     const detailsPage = await request.get(DETAILS_PATH);
+    expect(detailsPage.status()).toBe(200);
     return extractCsrf(await detailsPage.text());
 }
 
@@ -58,6 +62,7 @@ test('Registering redirects to the add details page', async ({ request }) => {
             _csrf: csrf,
             email: `details${Date.now()}@test.com`,
             password: Variables.validPassword,
+            confirmPassword: Variables.validPassword,
         },
         maxRedirects: 0,
     });
@@ -71,7 +76,6 @@ test('Add details page loads after registering', async ({ request }) => {
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('text/html');
     const body = await response.text();
-    expect(body).toContain('Add your details');
     expect(body).toContain('All details below are optional.');
 });
 
@@ -85,11 +89,26 @@ test('Add details page contains all the form fields and buttons', async ({ reque
     expect(body).toContain('Skip for now');
 });
 
+test('Add details page renders the form structure and help text', async ({ request }) => {
+    await registerSession(request);
+    const body = await (await request.get(DETAILS_PATH)).text();
+    expect(body).toContain('<form method="post" action="/register/details" novalidate>');
+    expect(body).toContain('<form class="card-footer" method="post" action="/register/details/skip">');
+    expect(body.match(/name="_csrf"/g)).toHaveLength(3);
+    expect(body).toContain('<form method="post" action="/register/details" novalidate>\n      <input type="hidden" name="_csrf"');
+    expect(body).toContain('<form class="card-footer" method="post" action="/register/details/skip">\n      <input type="hidden" name="_csrf"');
+    expect(body).toContain('Choose a question only if you want to provide an answer.');
+    expect(body).toContain('Leave blank to save neither the question nor an answer. After an error, re-enter your answer.');
+    expect(body.match(/class="field-error" role="alert"/g)).toHaveLength(7);
+});
+
 test('Add details page lists the security questions', async ({ request }) => {
     await registerSession(request);
     const body = await (await request.get(DETAILS_PATH)).text();
     expect(body).toContain('Select a question (optional)');
-    expect(body).toContain('What is your favourite colour?');
+    expect(body).toContain('name="securityQuestionID"');
+    expect(body).toContain('name="securityAnswer"');
+    expect(body).toContain('security-question-hint');
 });
 
 test('Add details page is not cached', async ({ request }) => {

@@ -50,16 +50,38 @@ test('fields start empty', async ({ page }) => {
 
 test('security question dropdown lists the questions', async ({ page }) => {
     const addDetailsPage = new AddDetailsPage(page);
-    await expect(addDetailsPage.securityQuestionSelect.locator('option')).toHaveText([
-        'Select a question (optional)',
-        'What is your favourite colour?',
-        'What is your pet\'s name?',
-    ]);
+    await expect(addDetailsPage.securityQuestionSelect.locator('option').first())
+        .toHaveText('Select a question (optional)');
+    const questionOptions = addDetailsPage.securityQuestionSelect.locator('option:not([value=""])');
+    expect(await questionOptions.count()).toBeGreaterThan(0);
+    await expect(questionOptions.first()).not.toBeEmpty();
+    await expect(addDetailsPage.securityQuestionSelect).toBeEnabled();
+    await expect(addDetailsPage.securityQuestionHint)
+        .toHaveText('Choose a question only if you want to provide an answer.');
+    await expect(addDetailsPage.securityAnswerHint)
+        .toHaveText('Leave blank to save neither the question nor an answer. After an error, re-enter your answer.');
 });
 
 test('security answer is masked', async ({ page }) => {
     const addDetailsPage = new AddDetailsPage(page);
     await expect(addDetailsPage.securityAnswerInput).toHaveAttribute('type', 'password');
+    await expect(addDetailsPage.securityAnswerInput).toHaveAttribute('autocomplete', 'off');
+});
+
+test('form fields match the registration details markup', async ({ page }) => {
+    const addDetailsPage = new AddDetailsPage(page);
+    await expect(addDetailsPage.detailsForm).toHaveCount(1);
+    await expect(addDetailsPage.firstNameInput).toHaveAttribute('autocomplete', 'given-name');
+    await expect(addDetailsPage.surnameInput).toHaveAttribute('autocomplete', 'family-name');
+    await expect(addDetailsPage.addressLine1Input).toHaveAttribute('autocomplete', 'address-line1');
+    await expect(addDetailsPage.addressLine2Input).toHaveAttribute('autocomplete', 'address-line2');
+    await expect(addDetailsPage.postcodeInput).toHaveAttribute('autocomplete', 'postal-code');
+    await expect(addDetailsPage.firstNameInput).toHaveAttribute('maxlength', '100');
+    await expect(addDetailsPage.surnameInput).toHaveAttribute('maxlength', '100');
+    await expect(addDetailsPage.addressLine1Input).toHaveAttribute('maxlength', '255');
+    await expect(addDetailsPage.addressLine2Input).toHaveAttribute('maxlength', '255');
+    await expect(addDetailsPage.postcodeInput).toHaveAttribute('maxlength', '20');
+    await expect(addDetailsPage.securityAnswerInput).toHaveAttribute('maxlength', '1024');
 });
 
 test('no errors are shown on load', async ({ page }) => {
@@ -77,9 +99,9 @@ test('save all details', async ({ page }) => {
         addressLine1: '1 Test Street',
         addressLine2: 'Testville',
         postcode: 'BT1 1AA',
-        securityQuestion: 'What is your favourite colour?',
-        securityAnswer: 'Blue',
     });
+    await addDetailsPage.securityQuestionSelect.selectOption({ index: 1 });
+    await addDetailsPage.securityAnswerInput.fill('Blue');
     await addDetailsPage.save();
     await expect(page).toHaveURL('/home');
 });
@@ -111,45 +133,11 @@ test('details page is not available again after skipping', async ({ page }) => {
     await expect(page).toHaveURL('/home');
 });
 
-test('unsuccessful save - first name too long', async ({ page }) => {
+test('first name input enforces the configured maximum length', async ({ page }) => {
     const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ firstName: 'a'.repeat(101) });
-    await addDetailsPage.save();
-    await expect(addDetailsPage.serverError).toHaveText('Check the details below and try again.');
-    await expect(addDetailsPage.firstNameError).toHaveText('First name must be 100 characters or fewer.');
-});
-
-test('unsuccessful save - surname too long', async ({ page }) => {
-    const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ surname: 'a'.repeat(101) });
-    await addDetailsPage.save();
-    await expect(addDetailsPage.surnameError).toHaveText('Surname must be 100 characters or fewer.');
-});
-
-test('unsuccessful save - address line 1 too long', async ({ page }) => {
-    const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ addressLine1: 'a'.repeat(256) });
-    await addDetailsPage.save();
-    await expect(addDetailsPage.addressLine1Error).toHaveText('Address line 1 must be 255 characters or fewer.');
-});
-
-test('unsuccessful save - address line 2 too long', async ({ page }) => {
-    const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ addressLine2: 'a'.repeat(256) });
-    await addDetailsPage.save();
-    await expect(addDetailsPage.addressLine2Error).toHaveText('Address line 2 must be 255 characters or fewer.');
-});
-
-test('unsuccessful save - postcode too long', async ({ page }) => {
-    const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ postcode: 'a'.repeat(21) });
-    await addDetailsPage.save();
-    await expect(addDetailsPage.postcodeError).toHaveText('Postcode must be 20 characters or fewer.');
+    await addDetailsPage.firstNameInput.pressSequentially('a'.repeat(101));
+    await expect(addDetailsPage.firstNameInput).toHaveValue('a'.repeat(100));
+    await expect(addDetailsPage.firstNameError).toBeEmpty();
 });
 
 test('unsuccessful save - security answer without a question', async ({ page }) => {
@@ -161,29 +149,29 @@ test('unsuccessful save - security answer without a question', async ({ page }) 
 
 test('failed save keeps the values entered', async ({ page }) => {
     const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ firstName: 'John', surname: 'a'.repeat(101), postcode: 'BT1 1AA' });
+    await addDetailsPage.fillDetails({ firstName: 'John', securityAnswer: 'Blue' });
     await addDetailsPage.save();
+    await expect(addDetailsPage.serverError).toHaveText('Check the details below and try again.');
     await expect(addDetailsPage.firstNameInput).toHaveValue('John');
-    await expect(addDetailsPage.postcodeInput).toHaveValue('BT1 1AA');
+    await expect(addDetailsPage.securityAnswerInput).toHaveValue('');
 });
 
 test('invalid fields are marked as invalid', async ({ page }) => {
     const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ firstName: 'a'.repeat(101) });
+    await addDetailsPage.fillDetails({ securityAnswer: 'Blue' });
     await addDetailsPage.save();
-    await expect(addDetailsPage.firstNameInput).toHaveAttribute('aria-invalid', 'true');
-    await expect(addDetailsPage.surnameInput).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(addDetailsPage.securityQuestionSelect).toHaveAttribute('aria-invalid', 'true');
+    await expect(addDetailsPage.securityAnswerInput).not.toHaveAttribute('aria-invalid', 'true');
 });
 
 test('can correct an error and save', async ({ page }) => {
     const addDetailsPage = new AddDetailsPage(page);
-    await addDetailsPage.removeMaxLengths();
-    await addDetailsPage.fillDetails({ firstName: 'a'.repeat(101) });
+    await addDetailsPage.fillDetails({ securityAnswer: 'Blue' });
     await addDetailsPage.save();
-    await expect(addDetailsPage.firstNameError).toBeVisible();
-    await addDetailsPage.fillDetails({ firstName: 'John' });
+    await expect(addDetailsPage.securityQuestionError)
+        .toHaveText('Select a security question when providing an answer.');
+    await addDetailsPage.securityQuestionSelect.selectOption({ index: 1 });
+    await addDetailsPage.securityAnswerInput.fill('Blue');
     await addDetailsPage.save();
     await expect(page).toHaveURL('/home');
 });

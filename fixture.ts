@@ -1,5 +1,5 @@
 import { test as base } from '@playwright/test';
-import { Variables } from './Variables';
+import { Variables } from './variables';
 
 export type testOptions = {
     login: (email?: string, password?: string) => Promise<any>;

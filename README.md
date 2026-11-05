@@ -12,16 +12,16 @@ npm install
 npx playwright install chromium
 ```
 
-Run the example test:
+Start the application at `http://localhost:8000`, then run the tests. Playwright uses this address by default; it does not start the application:
 
 ```sh
 npm test
 ```
 
-Set `TEST_URL` to the site you want to test:
+To test a different site, override the default with `TEST_URL`:
 
 ```sh
-TEST_URL=https://localhost8000 npm test
+TEST_URL=http://localhost:9000 npm test
 ```
 
 Add tests in `tests/`. Playwright's built-in `page` fixture is available in every test, so a typical test starts with `await page.goto(...)` and then adds locators and assertions.

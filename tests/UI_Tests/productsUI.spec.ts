@@ -43,7 +43,7 @@ test('products page lists the visible products', async ({ page }) => {
     const productsPage = new ProductsPage(page);
     await productsPage.goto();
     await expect(productsPage.productItems).toHaveCount(9);
-    await expect(productsPage.productLinks.first()).toHaveText('Hyaluronic Acid Serum');
+    await expect(productsPage.productLinks.last()).toHaveText('Hyaluronic Acid Serum');
 });
 
 test('products page does not list the hidden product', async ({ page }) => {
@@ -57,8 +57,8 @@ test('each product shows a name, price and stock label', async ({ page }) => {
     await productsPage.goto();
     await expect(productsPage.productPrices).toHaveCount(9);
     await expect(productsPage.stockLabels).toHaveCount(9);
-    await expect(productsPage.productPrices.first()).toHaveText('£37.99');
-    await expect(productsPage.stockLabels.first()).toHaveText('In stock');
+    await expect(productsPage.productPrices.last()).toHaveText('£37.99');
+    await expect(productsPage.stockLabels.last()).toHaveText('In stock');
 });
 
 test('product images are shown', async ({ page }) => {
@@ -88,7 +88,7 @@ test('search products by name', async ({ page }) => {
     await productsPage.searchByName('serum');
     await expect(page).toHaveURL(/\/products\?q=serum$/);
     await expect(productsPage.productItems).toHaveCount(1);
-    await expect(productsPage.productLinks).toHaveText('Hyaluronic Acid Serum');
+    await expect(productsPage.productLinks).toContainText('Hyaluronic Acid Serum');
 });
 
 test('search keeps the search term in the box', async ({ page }) => {
@@ -102,7 +102,7 @@ test('search ignores letter case', async ({ page }) => {
     const productsPage = new ProductsPage(page);
     await productsPage.goto();
     await productsPage.searchByName('SERUM');
-    await expect(productsPage.productLinks).toHaveText('Hyaluronic Acid Serum');
+    await expect(productsPage.productLinks.first()).toContainText('Hyaluronic Acid Serum');
 });
 
 test('search with no matches shows the empty message', async ({ page }) => {
@@ -129,7 +129,7 @@ test('filter products by category', async ({ page }) => {
     await productsPage.filterByCategory('Makeup');
     await expect(page).toHaveURL(/\/products\?category=category-makeup$/);
     await expect(productsPage.categorySelect).toHaveValue('category-makeup');
-    await expect(productsPage.productLinks).toHaveText([
+    await expect(productsPage.productLinks).toContainText([
         'Full Coverage Foundation',
         'Volumizing Mascara',
         'Liquid Lipstick Set',

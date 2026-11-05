@@ -24,7 +24,7 @@ export class ProductsPage {
         this.categorySelect = this.categoryForm.getByRole('combobox');
         this.categoryFilterButton = this.categoryForm.getByRole('button', { name: 'Filter products' });
         this.productItems = page.locator('.product-list > .product');
-        this.productLinks = page.locator('.product__link');
+        this.productLinks = this.productItems.locator('.product__body:last-child a.product__link');
         this.productImages = this.productItems.getByRole('img');
         this.productPrices = page.locator('.product__price');
         this.stockLabels = page.locator('.stock');
@@ -48,6 +48,8 @@ export class ProductsPage {
     }
 
     async openProduct(name: string) {
-        await this.productItem(name).getByRole('link', { name, exact: true }).click();
+        await this.productItem(name)
+            .locator('.product__body:last-child a.product__link')
+            .click();
     }
 }

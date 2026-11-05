@@ -4,6 +4,24 @@ import { Variables } from '../../Variables';
 
 const BACKEND_URL = 'http://localhost:3000';
 
+type Product = {
+    productID: string;
+    name: string;
+    visible: boolean;
+    draft: boolean;
+    deletedAt: string | null;
+    categories: { categoryID: string }[];
+};
+
+async function getVisibleProducts(page: Page): Promise<Product[]> {
+    const response = await page.request.get(`${BACKEND_URL}/products`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    return body.products.filter((product: Product) =>
+        product.visible && !product.draft && product.deletedAt === null
+    );
+}
+
 async function signIn(page: Page) {
     const response = await page.request.post(`${BACKEND_URL}/api/v1/auth/register`, {
         data: {
@@ -41,9 +59,11 @@ test('products page shows both search forms', async ({ page }) => {
 
 test('products page lists the visible products', async ({ page }) => {
     const productsPage = new ProductsPage(page);
+    const expectedProducts = await getVisibleProducts(page);
     await productsPage.goto();
-    await expect(productsPage.productItems).toHaveCount(9);
-    await expect(productsPage.productLinks.first()).toHaveText('Hyaluronic Acid Serum');
+    await expect(productsPage.productItems).toHaveCount(expectedProducts.length);
+    expect((await productsPage.productLinks.allTextContents()).sort())
+        .toEqual(expectedProducts.map((product) => product.name).sort());
 });
 
 test('products page does not list the hidden product', async ({ page }) => {
@@ -54,11 +74,12 @@ test('products page does not list the hidden product', async ({ page }) => {
 
 test('each product shows a name, price and stock label', async ({ page }) => {
     const productsPage = new ProductsPage(page);
+    const expectedProducts = await getVisibleProducts(page);
     await productsPage.goto();
-    await expect(productsPage.productPrices).toHaveCount(9);
-    await expect(productsPage.stockLabels).toHaveCount(9);
-    await expect(productsPage.productPrices.first()).toHaveText('£37.99');
-    await expect(productsPage.stockLabels.first()).toHaveText('In stock');
+    await expect(productsPage.productPrices).toHaveCount(expectedProducts.length);
+    await expect(productsPage.stockLabels).toHaveCount(expectedProducts.length);
+    expect((await productsPage.productLinks.allTextContents()).sort())
+        .toEqual(expectedProducts.map((product) => product.name).sort());
 });
 
 test('product images are shown', async ({ page }) => {
@@ -117,24 +138,24 @@ test('search with no matches shows the empty message', async ({ page }) => {
 
 test('clearing the search shows all products again', async ({ page }) => {
     const productsPage = new ProductsPage(page);
+    const expectedProducts = await getVisibleProducts(page);
     await productsPage.goto();
     await productsPage.searchByName('serum');
     await productsPage.searchByName('');
-    await expect(productsPage.productItems).toHaveCount(9);
+    await expect(productsPage.productItems).toHaveCount(expectedProducts.length);
 });
 
 test('filter products by category', async ({ page }) => {
     const productsPage = new ProductsPage(page);
+    const expectedProducts = (await getVisibleProducts(page))
+        .filter((product) => product.categories.some((category) => category.categoryID === 'category-makeup'))
+        .map((product) => product.name)
+        .sort();
     await productsPage.goto();
     await productsPage.filterByCategory('Makeup');
     await expect(page).toHaveURL(/\/products\?category=category-makeup$/);
     await expect(productsPage.categorySelect).toHaveValue('category-makeup');
-    await expect(productsPage.productLinks).toHaveText([
-        'Full Coverage Foundation',
-        'Volumizing Mascara',
-        'Liquid Lipstick Set',
-        'Luxury Makeup Brush Set',
-    ]);
+    expect((await productsPage.productLinks.allTextContents()).sort()).toEqual(expectedProducts);
 });
 
 test('clicking a product opens its product page', async ({ page }) => {

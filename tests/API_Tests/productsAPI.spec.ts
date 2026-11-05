@@ -42,7 +42,7 @@ async function getVisibleBackendProducts(request: APIRequestContext): Promise<Pr
 }
 
 function productLinks(html: string): string[] {
-    return [...html.matchAll(/class="product__link" href="(\/products\/[^"]+)"/g)].map((match) => match[1]);
+    return [...new Set([...html.matchAll(/class="product__link" href="(\/products\/[^"]+)"/g)].map((match) => match[1]))];
 }
 
 test('Products page loads', async ({ request }) => {
@@ -59,7 +59,7 @@ test('Products page is not cached', async ({ request }) => {
 test('Products page shows the heading and both search forms', async ({ request }) => {
     const response = await getProducts(request);
     const html = await response.text();
-    expect(html).toContain('<h1>Products</h1>');
+    expect(html).toMatch(/<h1[^>]*>Products<\/h1>/);
     expect(html).toContain('aria-label="Search products by name"');
     expect(html).toContain('aria-label="Search products by category"');
 });

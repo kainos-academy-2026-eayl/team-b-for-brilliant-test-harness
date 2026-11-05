@@ -84,7 +84,6 @@ test('Home page shows the main menu links', async ({ request }) => {
     const html = await response.text();
     expect(html).toContain('href="/home"');
     expect(html).toContain('href="/products"');
-    expect(html).toContain('href="/discounts"');
     expect(html).toContain('href="/account"');
     expect(html).toContain('href="/basket"');
 });

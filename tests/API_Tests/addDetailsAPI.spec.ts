@@ -15,14 +15,18 @@ function extractCsrf(html: string): string {
 async function registerSession(request: APIRequestContext): Promise<string> {
     const registerPage = await request.get('/register');
     const csrf = extractCsrf(await registerPage.text());
-    await request.post('/register', {
+    const registrationResponse = await request.post('/register', {
         form: {
             _csrf: csrf,
             email: `details${Date.now()}${Math.floor(Math.random() * 100000)}@test.com`,
             password: Variables.validPassword,
+            confirmPassword: Variables.validPassword,
         },
         maxRedirects: 0,
     });
+    expect(registrationResponse.status()).toBe(303);
+    expect(registrationResponse.headers()['location']).toBe(DETAILS_PATH);
+
     const detailsPage = await request.get(DETAILS_PATH);
     return extractCsrf(await detailsPage.text());
 }
@@ -58,6 +62,7 @@ test('Registering redirects to the add details page', async ({ request }) => {
             _csrf: csrf,
             email: `details${Date.now()}@test.com`,
             password: Variables.validPassword,
+            confirmPassword: Variables.validPassword,
         },
         maxRedirects: 0,
     });

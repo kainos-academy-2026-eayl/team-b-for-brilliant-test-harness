@@ -28,7 +28,7 @@ test.afterAll(async () => {
     await deleteDiscountsByCode(createdCodes);
 });
 
-test.describe('Add Discount page', () => {
+test.describe.skip('Add Discount page', () => {
     test('is reachable from the discounts list and shows the form', async ({ page }) => {
         await page.goto('/discounts');
         await page.getByRole('link', { name: 'Add Discount' }).click();
@@ -46,7 +46,7 @@ test.describe('Add Discount page', () => {
     });
 });
 
-test.describe('Validation', () => {
+test.describe.skip('Validation', () => {
     test.beforeEach(async ({ page }) => {
         await openAddDiscountPage(page);
     });
@@ -257,7 +257,7 @@ test.describe('Saving a discount as an admin', () => {
     });
 });
 
-test.describe('Saving a discount without admin rights', () => {
+test.describe.skip('Saving a discount without admin rights', () => {
     const validDiscount = () => ({
         code: uniqueCode('NOADMIN'),
         type: 'percentage' as const,

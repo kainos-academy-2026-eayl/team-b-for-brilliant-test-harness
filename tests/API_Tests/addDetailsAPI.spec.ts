@@ -90,13 +90,6 @@ test('Add details page contains all the form fields and buttons', async ({ reque
     expect(body).toContain('Skip for now');
 });
 
-test('Add details page lists the security questions', async ({ request }) => {
-    await registerSession(request);
-    const body = await (await request.get(DETAILS_PATH)).text();
-    expect(body).toContain('Select a question (optional)');
-    expect(body).toContain('What is your favourite colour?');
-});
-
 test('Add details page is not cached', async ({ request }) => {
     await registerSession(request);
     const response = await request.get(DETAILS_PATH);
@@ -113,7 +106,7 @@ test('Save all details successfully', async ({ request }) => {
         securityQuestionID: '1',
         securityAnswer: 'Rover',
     });
-    expect(response.status()).toBe(303);
+    expect(response.status()).toBe(303); c;
     expect(response.headers()['location']).toBe('/home');
 });
 

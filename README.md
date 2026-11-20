@@ -26,9 +26,22 @@ TEST_URL=https://localhost8000 npm test
 
 Add tests in `tests/`. Playwright's built-in `page` fixture is available in every test, so a typical test starts with `await page.goto(...)` and then adds locators and assertions.
 
-## Discount tests (`tests/add-discount.spec.ts`)
+## Running tests against Docker
 
-Start Postgres, the backend (port 3000) and the frontend (port 8000) first. `TEST_URL` defaults to `http://localhost:8000`.
+The tests call the frontend at port 8000 and the backend API at port 3000. From
+the harness directory, start the Docker stack in the sibling backend repository:
+
+```sh
+cd ../team-b-for-brilliant-backend
+npm run build
+docker compose up --build -d
+cd ../team-b-for-brilliant-test-harness
+npm test
+```
+
+`TEST_URL` defaults to `http://localhost:8000`.
+
+## Discount tests (`tests/add-discount.spec.ts`)
 
 Tests that save a discount need an account with the `admin` role. Create one in the local database (any user whose `roleID` points at a `Role` named `admin`), then pass its credentials:
 

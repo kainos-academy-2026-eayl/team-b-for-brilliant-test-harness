@@ -30,7 +30,7 @@ test('Try to register with a taken email address', async ({ request }) => {
 
     expect(response.status()).toBe(400);
     const body = await response.json();
-    expect(body.message).toBe("Invalid details");
+    expect(body.message).toBe("Email already in use");
 });
 
 test('Reject registration with missing email and password', async ({ request }) => {

@@ -10,9 +10,19 @@ test('successful registration', async ({ page }) => {
 });
 
 test('unsuccessful registration - used email', async ({ page }) => {
+    const takenEmail = `taken-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.com`;
     const registerPage = new RegisterPage(page);
+
+    // Register the email first so the test doesn't rely on existing data.
     await registerPage.goto();
-    await registerPage.registerAs(Variables.takenEmail, 'password123', 'password123');
+    await registerPage.registerAs(takenEmail, 'password123', 'password123');
+    await expect(page).toHaveURL('/register/details');
+
+    // Registration signs the user in, and /register redirects signed-in users.
+    await page.context().clearCookies();
+
+    await registerPage.goto();
+    await registerPage.registerAs(takenEmail, 'password123', 'password123');
     await expect(registerPage.message).toHaveText('Email or password is incorrect. Please try again.');
 });
 

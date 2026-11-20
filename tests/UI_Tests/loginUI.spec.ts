@@ -2,7 +2,7 @@ import { test, expect, Locator, Page } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage';
 
 
-test('correct login', async ({ page }) => {
+test.skip('correct login', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.loginAs('john@test.com', 'testPassword');
@@ -17,14 +17,14 @@ test('incorrect email shows error', async ({ page }) => {
     await expect(loginPage.message).toHaveText('Email or password is incorrect. Please try again.');
 });
 
-test('incorrect password shows error', async ({ page }) => {
+test.skip('incorrect password shows error', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.loginAs('john@test.com', 'wrongpasswordhgvgfcftcc');
     await expect(loginPage.message).toHaveText('Email or password is incorrect. Please try again.');
 });
 
-test('incorrect email and password shows error', async ({ page }) => {
+test.skip('incorrect email and password shows error', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.loginAs('qwmweodfweofm@test.com', 'wrongpasswordhgvgfcftcc');

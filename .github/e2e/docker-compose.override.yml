@@ -1,0 +1,7 @@
+# Layered on top of the backend repo's docker-compose.yml in CI.
+# The harness API helpers call the backend directly on localhost:3000,
+# but the base compose file only publishes the frontend (8000).
+services:
+  backend:
+    ports:
+      - "3000:3000"

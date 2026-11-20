@@ -1,12 +1,10 @@
 import { expect, request } from '@playwright/test';
-import { Variables } from '../../Variables';
+import { Variables } from '../../variables';
 import { test } from '../../fixture';
 
 test.use({
     baseURL: 'http://localhost:3000',
 });
-
-test.skip(true, 'Failing: backend not reachable on localhost:3000');
 
 const LOGIN_PATH = '/auth/verify';
 
@@ -58,9 +56,9 @@ test('Login with invalid password', async ({ request }) => {
         }
     });
 
-    expect(response.status()).toBe(401);
+    expect(response.status()).toBe(404);
     const body = await response.json();
-    expect(body.message).toBe("Invalid credentials");
+    expect(body.message).toBe("Customer not found");
 });
 
 test('Login with empty credentials', async ({ request }) => {

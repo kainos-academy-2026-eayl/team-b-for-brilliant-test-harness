@@ -6,8 +6,6 @@ test.use({
     baseURL: 'http://localhost:3000',
 });
 
-test.skip(true, 'Failing: backend not reachable on localhost:3000');
-
 const REGISTER_PATH = '/api/v1/auth/register';
 
 test('Register new user', async ({ request }) => {
@@ -32,7 +30,7 @@ test('Try to register with a taken email address', async ({ request }) => {
 
     expect(response.status()).toBe(400);
     const body = await response.json();
-    expect(body.message).toBe("Invalid details");
+    expect(body.message).toBe("Email already in use");
 });
 
 test('Reject registration with missing email and password', async ({ request }) => {

@@ -1,6 +1,8 @@
 export const Variables = {
     name: 'john',
-    uniqueEmail: `john@${Date.now()}.com`,
+    get uniqueEmail() {
+        return `john${Date.now()}${Math.floor(Math.random() * 1e6)}@test.com`;
+    },
     validPassword: 'testPassword',
     takenEmail: 'john@test2.com',
     phone: '0123456789',

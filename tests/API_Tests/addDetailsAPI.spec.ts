@@ -106,7 +106,7 @@ test('Save all details successfully', async ({ request }) => {
         securityQuestionID: '1',
         securityAnswer: 'Rover',
     });
-    expect(response.status()).toBe(303); c;
+    expect(response.status()).toBe(303);
     expect(response.headers()['location']).toBe('/home');
 });
 

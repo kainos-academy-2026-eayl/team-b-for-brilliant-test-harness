@@ -6,7 +6,8 @@ import { LoginPage } from '../pages/LoginPage';
 import { OrderConfirmationPage } from '../pages/OrderConfirmationPage';
 
 const QUANTITY = 2;
-const INVALID_CODE_MESSAGE = 'Invalid discount code';
+const UNKNOWN_CODE_MESSAGE = 'That discount code is not valid';
+const EXPIRED_CODE_MESSAGE = 'That discount code has expired';
 
 const pounds = (pence: number) => `£${toPounds(pence)}`;
 const total = (subtotal: string, discountPence: number) => pounds(toPence(subtotal) - discountPence + toPence(DELIVERY_CHARGE));
@@ -106,7 +107,7 @@ test.describe('Applying a discount code at checkout', () => {
         const response = await checkoutPage.applyDiscount('NOSUCHCODE');
 
         expect(response.status()).toBe(400);
-        await expect(checkoutPage.discountError).toHaveText(INVALID_CODE_MESSAGE);
+        await expect(checkoutPage.discountError).toHaveText(UNKNOWN_CODE_MESSAGE);
         await expect(checkoutPage.discountApplied).toHaveCount(0);
         await expect(checkoutPage.totalsRow('Discount')).toHaveCount(0);
         await expect(checkoutPage.totalsRow('Total')).toContainText(total(base.subtotal, 0));
@@ -120,7 +121,7 @@ test.describe('Applying a discount code at checkout', () => {
         const response = await checkoutPage.applyDiscount(discount.code);
 
         expect(response.status()).toBe(400);
-        await expect(checkoutPage.discountError).toHaveText(INVALID_CODE_MESSAGE);
+        await expect(checkoutPage.discountError).toHaveText(EXPIRED_CODE_MESSAGE);
         await expect(checkoutPage.payButton).toBeDisabled();
     });
 
@@ -239,8 +240,8 @@ test.describe('Paying with a discount code', () => {
         const response = await checkoutPage.placeOrder(DELIVERY_ADDRESS, APPROVED_CARD);
 
         expect(response.status()).toBe(400);
-        await expect(checkoutPage.alert).toContainText('That discount code has expired');
-        await expect(checkoutPage.discountError).toHaveText(INVALID_CODE_MESSAGE);
+        await expect(checkoutPage.alert).toContainText(EXPIRED_CODE_MESSAGE);
+        await expect(checkoutPage.discountError).toHaveText(EXPIRED_CODE_MESSAGE);
         await expect(orderConfirmationPage.heading).toHaveCount(0);
         expect((await customerApi.listOrders()).body.orders).toHaveLength(ordersBefore);
     });
@@ -274,7 +275,7 @@ test.describe('Discounts managed on the discounts page and used at checkout', ()
             await discountsPage.deactivate(saved!.discountID, code);
 
             expect((await customer.checkout.applyDiscount(code)).status()).toBe(400);
-            await expect(customer.checkout.discountError).toHaveText(INVALID_CODE_MESSAGE);
+            await expect(customer.checkout.discountError).toHaveText(EXPIRED_CODE_MESSAGE);
 
             await discountsPage.activateLink(code).click();
             await activateDiscountPage.submit(isoDate(14));

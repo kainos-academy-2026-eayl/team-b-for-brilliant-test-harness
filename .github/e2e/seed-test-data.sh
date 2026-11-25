@@ -26,3 +26,5 @@ register() {
 
 register john@test.com testPassword
 register john@test2.com testPassword
+# The ordinary customer the discount tests check out with (see tests/helpers/config.ts).
+register user@gmail.com password

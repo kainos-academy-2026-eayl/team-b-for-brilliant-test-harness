@@ -23,7 +23,7 @@ jobs:
     env:
       # Needs read access to the backend/frontend repos and, for dispatch runs,
       # permission to write commit statuses on them.
-      GH_TOKEN: ${{ secrets.TEST_HARNESS_REPO_TOKEN || github.token }}
+      GH_TOKEN: ${{ secrets.TEST_HARNESS_TOKEN || github.token }}
       # For dispatch runs, the repo that triggered us is tested at the pushed
       # commit; everything else is tested at main.
       BACKEND_REF: ${{ github.event.action == 'backend-push' && github.event.client_payload.sha || 'main' }}
@@ -105,6 +105,9 @@ jobs:
         run: |
           curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$API_URL/health"
           curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$TEST_URL/health"
+
+      - name: Seed test data
+        run: bash team-b-for-brilliant-test-harness/.github/e2e/seed-test-data.sh
 
       - name: Install test harness dependencies
         working-directory: team-b-for-brilliant-test-harness

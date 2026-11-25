@@ -6,8 +6,6 @@ test.use({
     baseURL: 'http://localhost:3000',
 });
 
-test.skip(true, 'Failing: backend not reachable on localhost:3000');
-
 const LOGIN_PATH = '/auth/verify';
 
 test('Login with valid credentials', async ({ request }) => {

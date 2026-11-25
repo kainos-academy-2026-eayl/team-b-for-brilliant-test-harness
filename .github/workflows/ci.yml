@@ -106,6 +106,9 @@ jobs:
           curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$API_URL/health"
           curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$TEST_URL/health"
 
+      - name: Seed test data
+        run: bash team-b-for-brilliant-test-harness/.github/e2e/seed-test-data.sh
+
       - name: Install test harness dependencies
         working-directory: team-b-for-brilliant-test-harness
         run: |

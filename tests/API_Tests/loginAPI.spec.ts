@@ -56,9 +56,9 @@ test('Login with invalid password', async ({ request }) => {
         }
     });
 
-    expect(response.status()).toBe(404);
+    expect(response.status()).toBe(401);
     const body = await response.json();
-    expect(body.message).toBe("Customer not found");
+    expect(body.message).toBe("Invalid credentials");
 });
 
 test('Login with empty credentials', async ({ request }) => {

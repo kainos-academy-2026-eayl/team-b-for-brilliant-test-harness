@@ -23,7 +23,7 @@ jobs:
     env:
       # Needs read access to the backend/frontend repos and, for dispatch runs,
       # permission to write commit statuses on them.
-      GH_TOKEN: ${{ secrets.TEST_HARNESS_REPO_TOKEN || github.token }}
+      GH_TOKEN: ${{ secrets.TEST_HARNESS_TOKEN || github.token }}
       # For dispatch runs, the repo that triggered us is tested at the pushed
       # commit; everything else is tested at main.
       BACKEND_REF: ${{ github.event.action == 'backend-push' && github.event.client_payload.sha || 'main' }}

@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  repository_dispatch:
+    types: [backend-push, frontend-push]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ORG: kainos-academy-2026-eayl
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Needs read access to the backend/frontend repos and, for dispatch runs,
+      # permission to write commit statuses on them.
+      GH_TOKEN: ${{ secrets.TEST_HARNESS_TOKEN || github.token }}
+      # For dispatch runs, the repo that triggered us is tested at the pushed
+      # commit; everything else is tested at main.
+      BACKEND_REF: ${{ github.event.action == 'backend-push' && github.event.client_payload.sha || 'main' }}
+      FRONTEND_REF: ${{ github.event.action == 'frontend-push' && github.event.client_payload.sha || 'main' }}
+      DISPATCH_REPO: ${{ github.event.client_payload.repository }}
+      DISPATCH_SHA: ${{ github.event.client_payload.sha }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      COMPOSE_FILES: -f team-b-for-brilliant-backend/docker-compose.yml -f team-b-for-brilliant-test-harness/.github/e2e/docker-compose.override.yml
+      DATABASE_URL: postgresql://dev:dev@localhost:5432/app_dev
+      TEST_URL: http://localhost:8000
+      API_URL: http://localhost:3000
+      PLAYWRIGHT_HTML_OPEN: never
+
+    steps:
+      - name: Checkout test harness
+        uses: actions/checkout@v4
+        with:
+          path: team-b-for-brilliant-test-harness
+
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.ORG }}/team-b-for-brilliant-backend
+          ref: ${{ env.BACKEND_REF }}
+          token: ${{ env.GH_TOKEN }}
+          path: team-b-for-brilliant-backend
+
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.ORG }}/team-b-for-brilliant-frontend
+          ref: ${{ env.FRONTEND_REF }}
+          token: ${{ env.GH_TOKEN }}
+          path: team-b-for-brilliant-frontend
+
+      - name: Report pending status to triggering commit
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          gh api "repos/$DISPATCH_REPO/statuses/$DISPATCH_SHA" \
+            -f state=pending -f context=e2e/playwright \
+            -f description="Playwright tests running" -f target_url="$RUN_URL"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: team-b-for-brilliant-backend/.nvmrc
+          cache: npm
+          cache-dependency-path: |
+            team-b-for-brilliant-backend/package-lock.json
+            team-b-for-brilliant-test-harness/package-lock.json
+
+      - name: Install and build backend
+        working-directory: team-b-for-brilliant-backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Generate throwaway secrets
+        run: |
+          for name in JWT_SECRET COOKIE_SECRET; do
+            value=$(openssl rand -hex 32)
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
+      - name: Start database
+        run: docker compose $COMPOSE_FILES up --wait --wait-timeout 120 db
+
+      - name: Migrate and seed database
+        working-directory: team-b-for-brilliant-backend
+        run: |
+          npx prisma migrate deploy
+          npm run prisma:seed
+
+      - name: Build and start backend and frontend
+        run: docker compose $COMPOSE_FILES up --build --wait --wait-timeout 180
+
+      - name: Check services are healthy
+        run: |
+          curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$API_URL/health"
+          curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$TEST_URL/health"
+
+      - name: Seed test data
+        run: bash team-b-for-brilliant-test-harness/.github/e2e/seed-test-data.sh
+
+      - name: Install test harness dependencies
+        working-directory: team-b-for-brilliant-test-harness
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: team-b-for-brilliant-test-harness
+        run: npx playwright test --reporter=list,html
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            team-b-for-brilliant-test-harness/playwright-report/
+            team-b-for-brilliant-test-harness/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose $COMPOSE_FILES logs --no-color
+
+      - name: Stop services
+        if: always()
+        run: docker compose $COMPOSE_FILES down --volumes --remove-orphans
+
+      - name: Report result to triggering commit
+        if: always() && github.event_name == 'repository_dispatch'
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" = "success" ]; then
+            state=success; description="Playwright tests passed"
+          else
+            state=failure; description="Playwright tests failed"
+          fi
+          gh api "repos/$DISPATCH_REPO/statuses/$DISPATCH_SHA" \
+            -f state="$state" -f context=e2e/playwright \
+            -f description="$description" -f target_url="$RUN_URL"

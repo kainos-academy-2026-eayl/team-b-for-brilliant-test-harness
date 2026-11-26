@@ -1,4 +1,5 @@
 name: CI
+run-name: ${{ github.event.client_payload.request_id || github.event.action || github.event_name }}
 
 on:
   push:

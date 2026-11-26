@@ -26,6 +26,20 @@ TEST_URL=http://localhost:9000 npm test
 
 Add tests in `tests/`. Playwright's built-in `page` fixture is available in every test, so a typical test starts with `await page.goto(...)` and then adds locators and assertions.
 
+## Frontend CI gate
+
+The frontend sends a `frontend-push` repository dispatch containing its commit
+SHA and a unique `client_payload.request_id`. The CI workflow uses that ID as
+its run name so the frontend can wait for the exact run and block its Build
+stage until this workflow completes successfully. Keep this workflow on the
+default branch: GitHub only receives repository dispatches there.
+Dispatches without a request ID retain an event-based run name.
+
+The frontend dispatch token needs **Contents: read and write** and **Actions:
+read** on this repository. `TEST_HARNESS_TOKEN` still needs read access to the
+frontend/backend and permission to write commit statuses on the triggering
+repository.
+
 ## Running tests against Docker
 
 The tests call the frontend at port 8000 and the backend API at port 3000. From

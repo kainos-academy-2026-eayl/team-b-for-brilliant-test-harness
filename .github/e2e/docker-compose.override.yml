@@ -2,6 +2,12 @@
 # The harness API helpers call the backend directly on localhost:3000,
 # but the base compose file only publishes the frontend (8000).
 services:
+  db:
+    # Do not import the backend image's development database dump.
+    image: postgres:17-alpine
+    build: !reset null
+    container_name: !reset null
+
   backend:
     ports:
       - "3000:3000"

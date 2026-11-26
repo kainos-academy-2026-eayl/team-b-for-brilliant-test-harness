@@ -42,6 +42,15 @@ repository.
 
 ## Running tests against Docker
 
+CI uses the stock `postgres:17-alpine` image instead of the backend's database
+image, which imports a development dump with extra products, categories,
+prices and security questions. Each run uses a unique Compose project and
+fresh database volume, then runs `prisma db push`, the backend seed and the
+harness seed. The historical migration chain assumes pre-existing tables,
+so this disposable E2E database uses the current Prisma schema directly;
+this workflow does not validate database migrations.
+The CI override leaves the normal local development stack unchanged.
+
 The tests call the frontend at port 8000 and the backend API at port 3000. From
 the harness directory, start the Docker stack in the sibling backend repository:
 

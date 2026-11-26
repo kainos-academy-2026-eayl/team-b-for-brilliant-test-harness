@@ -26,7 +26,30 @@ TEST_URL=http://localhost:9000 npm test
 
 Add tests in `tests/`. Playwright's built-in `page` fixture is available in every test, so a typical test starts with `await page.goto(...)` and then adds locators and assertions.
 
+## Frontend CI gate
+
+The frontend sends a `frontend-push` repository dispatch containing its commit
+SHA and a unique `client_payload.request_id`. The CI workflow uses that ID as
+its run name so the frontend can wait for the exact run and block its Build
+stage until this workflow completes successfully. Keep this workflow on the
+default branch: GitHub only receives repository dispatches there.
+Dispatches without a request ID retain an event-based run name.
+
+The frontend dispatch token needs **Contents: read and write** and **Actions:
+read** on this repository. `TEST_HARNESS_TOKEN` still needs read access to the
+frontend/backend and permission to write commit statuses on the triggering
+repository.
+
 ## Running tests against Docker
+
+CI uses the stock `postgres:17-alpine` image instead of the backend's database
+image, which imports a development dump with extra products, categories,
+prices and security questions. Each run uses a unique Compose project and
+fresh database volume, then runs `prisma db push`, the backend seed and the
+harness seed. The historical migration chain assumes pre-existing tables,
+so this disposable E2E database uses the current Prisma schema directly;
+this workflow does not validate database migrations.
+The CI override leaves the normal local development stack unchanged.
 
 The tests call the frontend at port 8000 and the backend API at port 3000. From
 the harness directory, start the Docker stack in the sibling backend repository:

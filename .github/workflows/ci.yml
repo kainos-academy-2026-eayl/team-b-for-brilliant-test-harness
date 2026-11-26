@@ -1,4 +1,5 @@
 name: CI
+run-name: ${{ github.event.client_payload.request_id || github.event.action || github.event_name }}
 
 on:
   push:
@@ -32,6 +33,7 @@ jobs:
       DISPATCH_SHA: ${{ github.event.client_payload.sha }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       COMPOSE_FILES: -f team-b-for-brilliant-backend/docker-compose.yml -f team-b-for-brilliant-test-harness/.github/e2e/docker-compose.override.yml
+      COMPOSE_PROJECT_NAME: brilliant-e2e-${{ github.run_id }}-${{ github.run_attempt }}
       DATABASE_URL: postgresql://dev:dev@localhost:5432/app_dev
       TEST_URL: http://localhost:8000
       API_URL: http://localhost:3000
@@ -92,10 +94,10 @@ jobs:
       - name: Start database
         run: docker compose $COMPOSE_FILES up --wait --wait-timeout 120 db
 
-      - name: Migrate and seed database
+      - name: Initialize schema and seed database
         working-directory: team-b-for-brilliant-backend
         run: |
-          npx prisma migrate deploy
+          npx prisma db push
           npm run prisma:seed
 
       - name: Build and start backend and frontend
